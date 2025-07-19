@@ -8,7 +8,11 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Product extends Model
 {
-    protected $fillable = ['name', 'description', 'category_id', 'best_seller'];
+    protected $fillable = ['name', 'subdescription', 'description', 'category_id', 'best_seller', 'price', 'months'];
+
+    protected $casts = [
+        'months' => 'array',
+    ];
 
     public function hasOneCategory()
     {
@@ -34,5 +38,4 @@ class Product extends Model
     {
         return $this->fillable;
     }
-
 }

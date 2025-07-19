@@ -30,8 +30,8 @@
                            class="border-gray-300 rounded-md shadow-sm mt-1 block w-full mb-4" />
 
                     <label for="description" class="block font-medium text-sm text-gray-700">Description</label>
-                    <input type="text" name="description" id="description" required
-                           class="border-gray-300 rounded-md shadow-sm mt-1 block w-full mb-4" />
+                    <textarea name="description" id="description" required
+                              class="border-gray-300 rounded-md shadow-sm mt-1 block w-full mb-4" rows="10"></textarea>
 
                     <label for="image" class="block font-medium text-sm text-gray-700 mb-1">Upload & Crop Image</label>
                     <input type="file" accept="image/*" id="imageInput" class="mb-4" />
@@ -63,7 +63,6 @@
                         <tr class="bg-gray-100">
                             <th class="border px-4 py-2">ID</th>
                             <th class="border px-4 py-2">Name</th>
-                            <th class="border px-4 py-2">Description</th>
                             <th class="border px-4 py-2">Image</th>
                             <th class="border px-4 py-2">Actions</th>
                         </tr>
@@ -73,7 +72,6 @@
                             <tr>
                                 <td class="border px-4 py-2">{{ $category->id }}</td>
                                 <td class="border px-4 py-2">{{ $category->name }}</td>
-                                <td class="border px-4 py-2">{{ $category->description }}</td>
                                 <td class="border px-4 py-2">
                                     <img src="{{ $category->image }}" alt="{{ $category->name }}" class="h-12 w-12 object-cover rounded" />
                                 </td>
@@ -96,7 +94,7 @@
                                         <input type="text" name="name" id="edit_name_{{ $category->id }}" value="{{ $category->name }}" required class="border-gray-300 rounded-md shadow-sm mt-1 block w-full mb-2" />
 
                                         <label for="edit_description_{{ $category->id }}" class="block font-medium text-sm text-gray-700">Description</label>
-                                        <input type="text" name="description" id="edit_description_{{ $category->id }}" value="{{ $category->description }}" required class="border-gray-300 rounded-md shadow-sm mt-1 block w-full mb-2" />
+                                        <textarea  rows="3" name="description" id="edit_description_{{ $category->id }}" required class="border-gray-300 rounded-md shadow-sm mt-1 block w-full mb-2" >{{ $category->description }}</textarea>
 
                                         <label for="edit_image_{{ $category->id }}" class="block font-medium text-sm text-gray-700 mb-1">Upload & Crop Image</label>
                                         <input type="file" accept="image/*" id="editImageInput{{ $category->id }}" class="mb-4 edit-image-input" data-id="{{ $category->id }}" />
@@ -147,7 +145,7 @@
                 if (cropper) cropper.destroy();
 
                 cropper = new Cropper(imagePreview, {
-                    aspectRatio: 1,
+                    aspectRatio: 280 / 270,
                     viewMode: 1,
                     autoCropArea: 1,
                     responsive: true,
@@ -160,7 +158,11 @@
         cropButton.addEventListener('click', function () {
             if (!cropper) return;
 
-            const canvas = cropper.getCroppedCanvas({ width: 400, height: 400, imageSmoothingQuality: 'high' });
+            const canvas = cropper.getCroppedCanvas({
+                width: 280,
+                height: 270,
+                imageSmoothingQuality: 'high'
+            });
 
             canvas.toBlob(function (blob) {
                 const reader = new FileReader();

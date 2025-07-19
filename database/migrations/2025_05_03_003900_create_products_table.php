@@ -14,12 +14,15 @@ return new class extends Migration
         Schema::create('products', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('description');
+            $table->string('subdescription');
+            $table->longText('description');
             $table->foreignId('category_id')
                 ->constrained('categories')
                 ->onDelete('cascade')
                 ->onUpdate('cascade');
-            $table->integer('best_seller');
+            $table->boolean('best_seller')->default(false);
+            $table->decimal('price', 8, 2)->nullable();
+            $table->json('months')->nullable();
             $table->timestamps();
         });
     }

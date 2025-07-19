@@ -15,7 +15,7 @@ class ProductController extends Controller
 {
     public function index()
     {
-        $products = Product::with(['hasOneCategory', 'hasManyImages'])->get();
+        $products = Product::with(['hasOneCategory', 'hasManyImages', 'hasManyData', 'hasManyTags'])->get();
         $categories = Category::all();
         return view('products', compact('products', 'categories'));
     }
@@ -24,29 +24,41 @@ class ProductController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'description' => 'required|string|max:255',
+            'subdescription' => 'required|string|max:255',
+            'description' => 'required|string',
             'category_id' => 'required|exists:categories,id',
             'best_seller' => 'nullable|boolean',
+            'price' => 'required_if:best_seller,1|nullable|numeric|min:0',
             'cropped_images.*' => 'nullable|string',
-            'cropped_images' => 'array|max:5', // Limit to 5 images
-            'main_image' => 'required|integer|min:0|max:4', // Ensure main_image is valid
+            'cropped_images' => 'array|max:5',
+            'main_image' => 'required|integer|min:0|max:4',
             'data.*.name' => 'nullable|string|max:255',
             'data.*.description' => 'nullable|string|max:255',
+            'data' => 'array|max:8',
             'tags.*.name' => 'nullable|string|max:255',
-            'tags.*.description' => 'nullable|string|max:255',
+            'tags.*.description' => 'nullable|string',
+            'tags' => 'array|max:6',
+            'months' => 'nullable|array',
+            'months.*' => 'integer|min:1|max:12',
+            'deleted_images' => 'nullable|array',
+            'deleted_images.*' => 'integer|exists:albums,id',
         ]);
 
         $product = Product::create([
             'name' => $validated['name'],
+            'subdescription' => $validated['subdescription'],
             'description' => $validated['description'],
             'category_id' => $validated['category_id'],
             'best_seller' => $request->boolean('best_seller'),
+            'price' => $request->boolean('best_seller') ? $validated['price'] : null,
+            'months' => $request->has('months') ? json_encode($validated['months']) : null,
         ]);
 
         // Handle images
         if ($request->has('cropped_images')) {
+            $currentImageCount = 0;
             foreach ($request->cropped_images as $index => $croppedImage) {
-                if ($croppedImage) {
+                if ($croppedImage && $currentImageCount < 5) {
                     $imageData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $croppedImage));
                     $imageName = 'products/' . Str::random(10) . '.jpg';
                     Storage::disk('public')->put($imageName, $imageData);
@@ -55,32 +67,37 @@ class ProductController extends Controller
                         'image' => $imageName,
                         'is_main' => $index == $request->main_image,
                     ]);
+                    $currentImageCount++;
                 }
             }
         }
 
         // Handle data
         if ($request->has('data')) {
+            $dataCount = 0;
             foreach ($request->data as $dataItem) {
-                if (!empty($dataItem['name']) && !empty($dataItem['description'])) {
+                if (!empty($dataItem['name']) && !empty($dataItem['description']) && $dataCount < 8) {
                     Data::create([
                         'product_id' => $product->id,
                         'name' => $dataItem['name'],
                         'description' => $dataItem['description'],
                     ]);
+                    $dataCount++;
                 }
             }
         }
 
         // Handle tags
         if ($request->has('tags')) {
+            $tagCount = 0;
             foreach ($request->tags as $tagItem) {
-                if (!empty($tagItem['name']) && !empty($tagItem['description'])) {
+                if (!empty($tagItem['name']) && !empty($tagItem['description']) && $tagCount < 6) {
                     Tag::create([
                         'product_id' => $product->id,
                         'name' => $tagItem['name'],
                         'description' => $tagItem['description'],
                     ]);
+                    $tagCount++;
                 }
             }
         }
@@ -97,53 +114,84 @@ class ProductController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'description' => 'required|string|max:255',
+            'subdescription' => 'required|string|max:255',
+            'description' => 'required|string',
             'category_id' => 'required|exists:categories,id',
             'best_seller' => 'nullable|boolean',
+            'price' => 'required_if:best_seller,1|nullable|numeric|min:0',
             'cropped_images.*' => 'nullable|string',
-            'cropped_images' => 'array|max:5', // Limit to 5 images
-            'main_image' => 'required|integer|min:0|max:4', // Ensure main_image is valid
+            'cropped_images' => 'array',
+            'main_image' => 'required|integer|min:0',
             'data.*.name' => 'nullable|string|max:255',
             'data.*.description' => 'nullable|string|max:255',
+            'data' => 'array|max:8',
             'tags.*.name' => 'nullable|string|max:255',
-            'tags.*.description' => 'nullable|string|max:255',
+            'tags.*.description' => 'nullable|string',
+            'tags' => 'array|max:6',
+            'months' => 'nullable|array',
+            'months.*' => 'integer|min:1|max:12',
+            'deleted_images' => 'nullable|array',
+            'deleted_images.*' => 'integer|exists:albums,id',
         ]);
 
         $product->update([
             'name' => $validated['name'],
+            'subdescription' => $validated['subdescription'],
             'description' => $validated['description'],
             'category_id' => $validated['category_id'],
             'best_seller' => $request->boolean('best_seller'),
+            'price' => $request->boolean('best_seller') ? $validated['price'] : null,
+            'months' => $request->has('months') ? json_encode($validated['months']) : null,
         ]);
 
-        // Handle images
+        // Handle image deletion
+        if ($request->has('deleted_images')) {
+            foreach ($request->deleted_images as $imageId) {
+                $image = Album::find($imageId);
+                if ($image && $image->product_id == $product->id) {
+                    Storage::disk('public')->delete($image->image);
+                    $image->delete();
+                }
+            }
+        }
+
+        // Handle new images
         if ($request->has('cropped_images')) {
-            // Delete old images
-            $product->hasManyImages()->delete();
+            $currentImageCount = $product->hasManyImages()->count();
             foreach ($request->cropped_images as $index => $croppedImage) {
-                if ($croppedImage) {
+                if ($croppedImage && $currentImageCount < 5) {
                     $imageData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $croppedImage));
                     $imageName = 'products/' . Str::random(10) . '.jpg';
                     Storage::disk('public')->put($imageName, $imageData);
                     Album::create([
                         'product_id' => $product->id,
                         'image' => $imageName,
-                        'is_main' => $index == $request->main_image,
+                        'is_main' => false,
                     ]);
+                    $currentImageCount++;
                 }
             }
+        }
+
+        // Update main image
+        $product->hasManyImages()->update(['is_main' => false]);
+        $mainImage = $product->hasManyImages()->skip($request->main_image)->first();
+        if ($mainImage) {
+            $mainImage->update(['is_main' => true]);
         }
 
         // Handle data
         if ($request->has('data')) {
             $product->hasManyData()->delete();
+            $dataCount = 0;
             foreach ($request->data as $dataItem) {
-                if (!empty($dataItem['name']) && !empty($dataItem['description'])) {
+                if (!empty($dataItem['name']) && !empty($dataItem['description']) && $dataCount < 8) {
                     Data::create([
                         'product_id' => $product->id,
                         'name' => $dataItem['name'],
                         'description' => $dataItem['description'],
                     ]);
+                    $dataCount++;
                 }
             }
         }
@@ -151,13 +199,15 @@ class ProductController extends Controller
         // Handle tags
         if ($request->has('tags')) {
             $product->hasManyTags()->delete();
+            $tagCount = 0;
             foreach ($request->tags as $tagItem) {
-                if (!empty($tagItem['name']) && !empty($tagItem['description'])) {
+                if (!empty($tagItem['name']) && !empty($tagItem['description']) && $tagCount < 6) {
                     Tag::create([
                         'product_id' => $product->id,
                         'name' => $tagItem['name'],
                         'description' => $tagItem['description'],
                     ]);
+                    $tagCount++;
                 }
             }
         }
@@ -167,7 +217,9 @@ class ProductController extends Controller
 
     public function destroy(Product $product)
     {
-        // Delete associated images, data, and tags
+        foreach ($product->hasManyImages as $image) {
+            Storage::disk('public')->delete($image->image);
+        }
         $product->hasManyImages()->delete();
         $product->hasManyData()->delete();
         $product->hasManyTags()->delete();

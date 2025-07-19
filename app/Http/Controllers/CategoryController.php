@@ -23,7 +23,7 @@ class CategoryController extends Controller
     {
         $request->validate([
             'name'        => 'required|string|max:255',
-            'description' => 'required|string|max:255',
+            'description' => 'required|string',
             'cropped_image' => 'required|string',
         ]);
 
@@ -43,7 +43,7 @@ class CategoryController extends Controller
     {
         $request->validate([
             'name'        => 'required|string|max:255',
-            'description' => 'required|string|max:255',
+            'description' => 'required|string',
             'cropped_image' => 'nullable|string',
         ]);
 
