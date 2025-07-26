@@ -63,8 +63,10 @@ class FormApiController extends Controller
             'additional_message' => 'required|string',
         ]);
 
-        FullProductRequest::create($data);
+        \App\Models\FullProductRequest::create($data);
 
-        return response()->json(['message' => 'Full product request sent.'], 201);
+        return response()->json(['message' => 'Full product request sent successfully.'], 201);
     }
+
+
 }
